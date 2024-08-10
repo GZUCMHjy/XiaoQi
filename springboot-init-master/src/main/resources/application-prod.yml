@@ -1,0 +1,75 @@
+# 线上配置文件
+server:
+  port: 8101
+spring:
+  # 数据库配置
+  # todo 需替换配置
+  datasource:
+#    driver-class-name: com.mysql.cj.jdbc.Driver
+#    url: jdbc:mysql://8.134.189.218:3306/my_db
+#    username: szy-develop
+#    password: fBYXzBRAtwtT87NE
+    driver-class-name: com.mysql.cj.jdbc.Driver
+    url: jdbc:mysql://192.168.88.113:3360/my_db
+    username: root
+    password: fBYXzBRAtwtT87NE
+    type: com.alibaba.druid.pool.DruidDataSource
+    druid:
+        min-idle: 1                                          # 最小连接数
+        max-active: 8                                         # 最大连接数(默认8)
+        max-wait: 1000                                       # 获取连接时的最大等待时间
+        min-evictable-idle-time-millis: 300000               # 一个连接在池中最小生存的时间，单位是毫秒
+        time-between-eviction-runs-millis: 60000             # 多久才进行一次检测需要关闭的空闲连接，单位是毫秒
+  mvc:
+    pathmatch:
+      matching-strategy: ant_path_matcher
+    async:
+      request-timeout: 300000
+  # Redis 配置
+  # todo 需替换配置
+  redis:
+    database: 1
+    host: localhost
+    port: 6379
+    timeout: 5000
+    password: 123456
+  # Elasticsearch 配置
+  # todo 需替换配置
+  elasticsearch:
+    uris: http://localhost:9200
+    username: root
+    password: 123456
+mybatis-plus:
+  configuration:
+    # 生产环境关闭日志
+    log-impl: ''
+
+email:
+  sender:
+    address: 947441054@qq.com
+    password: ygandzlmwkwxbbce
+    name: 广东省中医药科学院发展研究中心
+    subject: 岐伯曰中医药大模型
+
+sms:
+  secretId: AKIDRgiguNlFdvNoCkMvcGqV7eCiDd8iZPQX
+  secretKey: P1U3fPJC1ythQ6hCMTYj0EWmG508D7tm
+  signName: 腾云悦智
+  sdkAppId: 1400913668
+
+weather:
+  privateKey: Sm-3zxQ2Uqh2W6ke0
+  language: zh-Hans
+  unit: c
+
+roll_api:
+  app_id: hvsttnsnxofj9i1p
+  app_secret: ypprHzlVM1gDZ4SQCmRjD4Uy3KN4JPKP
+
+app:
+  upload:
+    dir: /root/html/images/
+    prefix: https://qibochat.tcmhis.com
+  file:
+    upload-dir: /root/html/files/
+    upload-pic: /root/html/pics/

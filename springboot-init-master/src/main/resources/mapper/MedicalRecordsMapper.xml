@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.louis.springbootinit.mapper.MedicalRecordsMapper">
+
+    <resultMap id="BaseResultMap" type="com.louis.springbootinit.model.entity.MedicalRecords">
+            <id property="userId" column="userId" jdbcType="VARCHAR"/>
+            <result property="pastMedicalHistory" column="pastMedicalHistory" jdbcType="VARCHAR"/>
+            <result property="familyMedicalHistory" column="familyMedicalHistory" jdbcType="VARCHAR"/>
+            <result property="allergyHistory" column="allergyHistory" jdbcType="VARCHAR"/>
+            <result property="surgicalHistory" column="surgicalHistory" jdbcType="VARCHAR"/>
+            <result property="hospitalizationRecords" column="hospitalizationRecords" jdbcType="VARCHAR"/>
+            <result property="vaccinationRecords" column="vaccinationRecords" jdbcType="VARCHAR"/>
+            <result property="createTime" column="createTime" jdbcType="TIMESTAMP"/>
+            <result property="updateTime" column="updateTime" jdbcType="TIMESTAMP"/>
+    </resultMap>
+
+    <sql id="Base_Column_List">
+        userId,pastMedicalHistory,familyMedicalHistory,
+        allergyHistory,surgicalHistory,hospitalizationRecords,
+        vaccinationRecords,createTime,updateTime
+    </sql>
+</mapper>

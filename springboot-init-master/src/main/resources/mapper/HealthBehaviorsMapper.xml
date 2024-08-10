@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.louis.springbootinit.mapper.HealthBehaviorsMapper">
+
+    <resultMap id="BaseResultMap" type="com.louis.springbootinit.model.entity.HealthBehaviors">
+            <id property="userId" column="userId" jdbcType="VARCHAR"/>
+            <result property="eatingHabits" column="eatingHabits" jdbcType="VARCHAR"/>
+            <result property="exerciseHabits" column="exerciseHabits" jdbcType="VARCHAR"/>
+            <result property="smokingAndDrinking" column="smokingAndDrinking" jdbcType="VARCHAR"/>
+            <result property="sleepPattern" column="sleepPattern" jdbcType="VARCHAR"/>
+            <result property="createTime" column="createTime" jdbcType="TIMESTAMP"/>
+            <result property="updateTime" column="updateTime" jdbcType="TIMESTAMP"/>
+    </resultMap>
+
+    <sql id="Base_Column_List">
+        userId,eatingHabits,exerciseHabits,
+        smokingAndDrinking,sleepPattern,createTime,
+        updateTime
+    </sql>
+</mapper>

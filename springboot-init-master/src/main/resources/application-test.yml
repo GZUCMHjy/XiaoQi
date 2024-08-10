@@ -1,0 +1,63 @@
+# 测试配置文件
+server:
+  port: 8102
+spring:
+  # 数据库配置
+  # todo 需替换配置
+  datasource:
+    driver-class-name: com.mysql.cj.jdbc.Driver
+    url: jdbc:mysql://8.134.189.218:3308/my_db
+    username: root
+    password: szy-model-test
+    type: com.alibaba.druid.pool.DruidDataSource
+    druid:
+      min-idle: 1                                          # 最小连接数
+      max-active: 8                                         # 最大连接数(默认8)
+      max-wait: 1000                                       # 获取连接时的最大等待时间
+      min-evictable-idle-time-millis: 300000               # 一个连接在池中最小生存的时间，单位是毫秒
+      time-between-eviction-runs-millis: 60000             # 多久才进行一次检测需要关闭的空闲连接，单位是毫秒
+  mvc:
+    async:
+      # 五分钟请求时间
+      request-timeout: 300000
+  # Redis 配置
+  # todo 需替换配置
+  redis:
+    database: 1
+    host: localhost
+    port: 6379
+    timeout: 5000
+    password: 123456
+  # Elasticsearch 配置
+  # todo 需替换配置
+  elasticsearch:
+    uris: http://localhost:9200
+    username: root
+    password: 123456
+
+email:
+  sender:
+    address: 947441054@qq.com
+    password: ygandzlmwkwxbbce
+    name: 广东省中医药科学院发展研究中心
+    subject: 岐伯曰中医药大模型
+
+sms:
+  secretId: AKIDRgiguNlFdvNoCkMvcGqV7eCiDd8iZPQX
+  secretKey: P1U3fPJC1ythQ6hCMTYj0EWmG508D7tm
+  signName: 腾云悦智
+  sdkAppId: 1400913668
+
+
+roll_api:
+  app_id: hvsttnsnxofj9i1p
+  app_secret: ypprHzlVM1gDZ4SQCmRjD4Uy3KN4JPKP
+
+app:
+  upload:
+    dir: /data/images/
+    prefix: http://8.134.189.218:8102
+  file:
+    upload-dir: /data/files/
+    upload-pic: /data/pics/
+

@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.louis.springbootinit.mapper.MsgLogMapper">
+
+    <resultMap id="BaseResultMap" type="com.louis.springbootinit.model.entity.MsgLog">
+            <id property="uuid" column="uuid" jdbcType="VARCHAR"/>
+            <result property="title" column="title" jdbcType="VARCHAR"/>
+            <result property="icon" column="icon" jdbcType="VARCHAR"/>
+            <result property="systeminfo" column="systemInfo" jdbcType="VARCHAR"/>
+            <result property="modelid" column="modelId" jdbcType="VARCHAR"/>
+    </resultMap>
+
+    <sql id="Base_Column_List">
+        uuid,title,icon,
+        systemInfo,modelId
+    </sql>
+</mapper>

@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.louis.springbootinit.mapper.BodyHealthMapper">
+
+    <resultMap id="BaseResultMap" type="com.louis.springbootinit.model.entity.BodyHealth">
+            <id property="userId" column="userId" jdbcType="VARCHAR"/>
+            <result property="birthDate" column="birthDate" jdbcType="DATE"/>
+            <result property="height" column="height" jdbcType="DECIMAL"/>
+            <result property="weight" column="weight" jdbcType="DECIMAL"/>
+            <result property="BMI" column="BMI" jdbcType="DECIMAL"/>
+            <result property="bodyTemperature" column="bodyTemperature" jdbcType="DECIMAL"/>
+            <result property="bloodPressure" column="bloodPressure" jdbcType="VARCHAR"/>
+            <result property="heartRate" column="heartRate" jdbcType="INTEGER"/>
+            <result property="bloodSugarLevel" column="bloodSugarLevel" jdbcType="DECIMAL"/>
+            <result property="bloodLipid" column="bloodLipid" jdbcType="DECIMAL"/>
+            <result property="bloodOxygenSaturation" column="bloodOxygenSaturation" jdbcType="DECIMAL"/>
+            <result property="age" column="age" jdbcType="INTEGER"/>
+            <result property="createTime" column="createTime" jdbcType="TIMESTAMP"/>
+            <result property="updateTime" column="updateTime" jdbcType="TIMESTAMP"/>
+    </resultMap>
+
+    <sql id="Base_Column_List">
+        userId,birthDate,height,
+        weight,BMI,bodyTemperature,
+        bloodPressure,heartRate,bloodSugarLevel,
+        bloodLipid,bloodOxygenSaturation,age,
+        createTime,updateTime
+    </sql>
+</mapper>

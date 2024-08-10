@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.louis.springbootinit.mapper.BiomarkersMapper">
+
+    <resultMap id="BaseResultMap" type="com.louis.springbootinit.model.entity.Biomarkers">
+            <id property="userId" column="userId" jdbcType="VARCHAR"/>
+            <result property="geneticTesting" column="geneticTesting" jdbcType="VARCHAR"/>
+            <result property="hormoneLevels" column="hormoneLevels" jdbcType="VARCHAR"/>
+            <result property="createTime" column="createTime" jdbcType="TIMESTAMP"/>
+            <result property="updateTime" column="updateTime" jdbcType="TIMESTAMP"/>
+    </resultMap>
+
+    <sql id="Base_Column_List">
+        userId,geneticTesting,hormoneLevels,
+        createTime,updateTime
+    </sql>
+</mapper>

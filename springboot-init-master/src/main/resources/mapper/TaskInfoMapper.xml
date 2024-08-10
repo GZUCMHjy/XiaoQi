@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.louis.springbootinit.mapper.TaskInfoMapper">
+
+    <resultMap id="BaseResultMap" type="com.louis.springbootinit.model.entity.TaskInfo">
+            <id property="taskId" column="taskId" jdbcType="BIGINT"/>
+            <result property="userId" column="userId" jdbcType="BIGINT"/>
+            <result property="uuid" column="uuid" jdbcType="VARCHAR"/>
+            <result property="prompt" column="prompt" jdbcType="VARCHAR"/>
+            <result property="picUrl" column="picUrl" jdbcType="VARCHAR"/>
+            <result property="rawPicUrl" column="rawPicUrl" jdbcType="VARCHAR"/>
+            <result property="status" column="status" jdbcType="TINYINT"/>
+            <result property="createdAt" column="createdAt" jdbcType="TIMESTAMP"/>
+            <result property="updatedAt" column="updatedAt" jdbcType="TIMESTAMP"/>
+    </resultMap>
+
+    <sql id="Base_Column_List">
+        taskId,userId,uuid,
+        prompt,picUrl,rawPicUrl,status,
+        createdAt,updatedAt
+    </sql>
+</mapper>
