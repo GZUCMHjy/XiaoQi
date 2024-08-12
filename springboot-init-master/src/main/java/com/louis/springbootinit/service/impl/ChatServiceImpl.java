@@ -2,6 +2,7 @@ package com.louis.springbootinit.service.impl;
 
 import cn.hutool.core.date.LocalDateTimeUtil;
 import cn.hutool.core.lang.UUID;
+import cn.hutool.core.util.ObjectUtil;
 import cn.hutool.core.util.RandomUtil;
 import cn.hutool.core.util.StrUtil;
 import cn.hutool.json.JSONUtil;
@@ -349,11 +350,10 @@ public class ChatServiceImpl implements ChatService {
         String text = "";
         String modelName;
         List<String> questions = new ArrayList<>();
-        if(job.getMapToQuestion() == null || job.getMapToQuestion().size() == 0){
+        if(ObjectUtil.isEmpty(job.getMapToQuestion())){
             selectModel(modelId);
             ModelEnums modelEnums = map.get(modelId);
             modelName = modelEnums.getModelName().substring(0,6);
-            // List<String> questions = new ArrayList<>();
             try{
                 String prompt = "给我提一个有关于"+modelName+"相关领域的问题题目吗?" +
                         "题目格式举例:如何大力发展中医药产业发展? " +

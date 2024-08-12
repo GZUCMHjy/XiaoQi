@@ -7,15 +7,13 @@ import com.louis.springbootinit.manager.AiManager;
 import com.louis.springbootinit.model.enums.ModelEnums;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.scheduling.annotation.Scheduled;
-import org.springframework.scheduling.annotation.Schedules;
 import org.springframework.stereotype.Component;
-
-import javax.annotation.PostConstruct;
 import javax.annotation.Resource;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 
 /**
  * @author louis
@@ -28,7 +26,8 @@ public class GenerateQuestionsJob {
 
     @Resource
     private AiManager aiManager;
-    private Map<String, List<String>> mapToQuestion = new HashMap<>();
+    // 使用ConcurrentHashMap 提高并发能力且线程安全
+    private Map<String, List<String>> mapToQuestion = new ConcurrentHashMap<>();
     private final Map<String, ModelEnums> map = new HashMap<>();
     private String appKey;
     private String apiKey;
@@ -59,10 +58,11 @@ public class GenerateQuestionsJob {
                 String curQuestion = call.getOutput().getText();
                 arrayList.add(curQuestion);
             }
-            mapToQuestion.put(map.get(String.valueOf(i)).getModelId(),arrayList);
+            // 避免覆盖原有值
+            mapToQuestion.putIfAbsent(map.get(String.valueOf(i)).getModelId(),arrayList);
         }
     }
-    public synchronized Map<String, List<String>> getMapToQuestion() {
+    public  Map<String, List<String>> getMapToQuestion() {
         return new HashMap<>(mapToQuestion);
     }
 
