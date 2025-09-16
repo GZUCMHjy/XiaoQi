@@ -1,7 +1,5 @@
 package com.louis.springbootinit.service.impl;
 
-import cn.hutool.core.date.LocalDateTimeUtil;
-import cn.hutool.core.lang.UUID;
 import cn.hutool.core.util.ObjectUtil;
 import cn.hutool.core.util.RandomUtil;
 import cn.hutool.core.util.StrUtil;
@@ -9,15 +7,12 @@ import cn.hutool.json.JSONUtil;
 import com.alibaba.dashscope.app.Application;
 import com.alibaba.dashscope.app.ApplicationParam;
 import com.alibaba.dashscope.app.ApplicationResult;
-import com.alibaba.dashscope.app.RagApplicationParam;
-import com.alibaba.dashscope.common.History;
-import com.alibaba.dashscope.common.Role;
 import com.alibaba.dashscope.exception.ApiException;
 import com.alibaba.dashscope.exception.InputRequiredException;
 import com.alibaba.dashscope.exception.NoApiKeyException;
-import com.alibaba.excel.util.StringUtils;
 import com.alibaba.fastjson.JSON;
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
+import com.louis.springbootinit.facade.AiFacade;
 import com.louis.springbootinit.common.ErrorCode;
 import com.louis.springbootinit.constant.UserConstant;
 import com.louis.springbootinit.job.GenerateQuestionsJob;
@@ -30,14 +25,18 @@ import com.louis.springbootinit.model.dto.request.UserAsk;
 import com.louis.springbootinit.model.entity.TaskInfo;
 import com.louis.springbootinit.model.entity.User;
 import com.louis.springbootinit.model.enums.ModelEnums;
+import com.louis.springbootinit.model.vo.ModelCredentials;
+import com.louis.springbootinit.processor.ChatOutputProcessor;
+import com.louis.springbootinit.processor.ChatProcessingContext;
+import com.louis.springbootinit.processor.OutputProcessorChainFactory;
+import com.louis.springbootinit.prompt.PromptBuilder;
+import com.louis.springbootinit.strategy.ModelSelectionStrategy;
 import com.louis.springbootinit.service.ChatService;
 import com.louis.springbootinit.service.HistoryService;
 import com.louis.springbootinit.service.TaskInfoService;
 import com.louis.springbootinit.utils.FileUtils;
-import com.louis.springbootinit.utils.InciseStrUtils;
+ 
 import io.reactivex.Flowable;
-import io.reactivex.Scheduler;
-import io.reactivex.schedulers.Schedulers;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpHeaders;
@@ -45,24 +44,18 @@ import org.springframework.http.MediaType;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.ObjectUtils;
-import org.springframework.util.StopWatch;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 import reactor.core.publisher.Flux;
 
-import javax.annotation.Generated;
 import javax.annotation.Resource;
 import javax.servlet.ServletOutputStream;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import java.io.IOException;
 import java.time.Duration;
-import java.time.LocalDateTime;
 import java.util.*;
-import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
-import java.util.stream.Collectors;
+ 
 
 import static com.louis.springbootinit.constant.UserConstant.USER_LOGIN_STATE;
 
@@ -74,10 +67,7 @@ import static com.louis.springbootinit.constant.UserConstant.USER_LOGIN_STATE;
 @Service
 @Slf4j
 public class ChatServiceImpl implements ChatService {
-    // 默认调用政策大模型
-    private static String appKey = ModelEnums.MODEL3.getAppKey();
-    private static String apiKey = ModelEnums.MODEL3.getApiKey();
-    private static final Map<String,ModelEnums> map = new HashMap<>();
+    // 历史会话失效时间（毫秒）
     private static final int EXPIREDTIME = 3600000;
     @Value("${app.upload.dir}")
     private String uploadDir;
@@ -88,28 +78,19 @@ public class ChatServiceImpl implements ChatService {
     @Resource
     private AiManager aiManager;
     @Resource
+    private AiFacade aiFacade;
+    @Resource
     private GenerateQuestionsJob job;
     @Resource
     private HistoryMapper historyMapper;
     @Resource
     private TaskInfoService taskService;
-    static{
-        map.put(ModelEnums.MODEL1.getModelId(),ModelEnums.MODEL1);
-        map.put(ModelEnums.MODEL2.getModelId(),ModelEnums.MODEL2);
-        map.put(ModelEnums.MODEL3.getModelId(),ModelEnums.MODEL3);
-        map.put(ModelEnums.MODEL4.getModelId(),ModelEnums.MODEL4);
-        map.put(ModelEnums.MODEL5.getModelId(),ModelEnums.MODEL5);
-        map.put(ModelEnums.MODEL6.getModelId(),ModelEnums.MODEL6);
-    }
-    /**
-     * 选择调用大模型
-     * @param modelId
-     */
-    public void selectModel(String modelId){
-        ModelEnums modelEnums = map.get(modelId);
-        appKey = modelEnums.getAppKey();
-        apiKey = modelEnums.getApiKey();
-    }
+    @Resource
+    private ModelSelectionStrategy modelSelectionStrategy;
+    @Resource
+    private OutputProcessorChainFactory outputProcessorChainFactory;
+    @Resource
+    private PromptBuilder promptBuilder;
 
 
     /**
@@ -129,7 +110,10 @@ public class ChatServiceImpl implements ChatService {
             // 大于五轮对话（含用户和大模型）
             his.pollFirst();
         }
-        selectModel(param.getModelId());
+        ModelCredentials credentials = modelSelectionStrategy.resolveByModelId(param.getModelId());
+        if (credentials == null) {
+            throw new BusinessException(ErrorCode.NOT_FOUND_ERROR, "无效的模型ID");
+        }
         QueryWrapper<com.louis.springbootinit.model.entity.History> historyQueryWrapper = new QueryWrapper<>();
         historyQueryWrapper.eq("userId",user.getId());
         historyQueryWrapper.eq("uuid",param.getUuid());
@@ -142,7 +126,8 @@ public class ChatServiceImpl implements ChatService {
             boolean isExpired = false;// 默认没有失效
             boolean isExist = false;// 默认不存在
             StringBuilder sb = new StringBuilder();
-            Pattern pattern = Pattern.compile("!\\[.*?\\]\\((.*?)\\)");
+            ChatProcessingContext processingContext = new ChatProcessingContext();
+            ChatOutputProcessor processorChain = outputProcessorChainFactory.buildDefaultChain();
             if(target != null){
                 // 判断是否存在
                 isExist = true;
@@ -159,15 +144,15 @@ public class ChatServiceImpl implements ChatService {
                 // 如果存在且没有失活
                 com.louis.springbootinit.model.entity.History history = historyMapper.selectOne(historyQueryWrapper);
                 String sessionId = history.getSessionId();
-                result = streamCall(apiKey, appKey, param.getMessage() + "?结合历史对话：" + his,sessionId,true);
+                String prompt = promptBuilder.build(his, param.getMessage());
+                result = aiFacade.streamWithSession(credentials, prompt, sessionId, true);
                 result
                         .doOnComplete(() -> {
                             // 数据流完成
                             emitter.complete();
                             // 完成回调执行创建任务（保存模型图片链接和替换图片链接）
-                            Matcher matcher = pattern.matcher(sb.toString());
-                            if (matcher.find()) {
-                                String picUrlWithExpired = InciseStrUtils.extractUrl(sb.toString());
+                            String picUrlWithExpired = processingContext.getLastImageUrl();
+                            if (picUrlWithExpired != null) {
                                 String picName = extractFilename(picUrlWithExpired);
                                 try{
                                     FileUtils.downloadImage(picUrlWithExpired, uploadDir + picName);
@@ -189,8 +174,9 @@ public class ChatServiceImpl implements ChatService {
                             if (data.getOutput().getText() != null) {
                                 log.info(data.getOutput().getText());
                                 String text = data.getOutput().getText();
+                                String processed = processorChain.process(text, processingContext);
                                 bean.success(text,200);
-                                sb.append(text);
+                                sb.append(processed);
                                 String beanJson = JSONUtil.toJsonStr(bean);
                                 emitter.send(beanJson);
                             }
@@ -207,7 +193,8 @@ public class ChatServiceImpl implements ChatService {
                 history.setUserId(user.getId().toString());
                 AtomicReference<String> sessionId = new AtomicReference<>();
                 // 创建会话第一次对话(无需开启上下文记忆)
-                result = streamCall(apiKey, appKey, param.getMessage(),true);
+                String prompt = param.getMessage();
+                result = aiFacade.stream(credentials, prompt,true);
                 //result = streamCall(apiKey, appKey, param.getMessage(),sessionId,true);
                 result
                         .doOnError(e -> {
@@ -221,7 +208,8 @@ public class ChatServiceImpl implements ChatService {
                                 log.info(data.getOutput().getText());
                                 sessionId.set(data.getOutput().getSessionId());
                                 String text = data.getOutput().getText();
-                                sb.append(text);
+                                String processed = processorChain.process(text, processingContext);
+                                sb.append(processed);
                                 bean.success(text,200);
                                 String beanJson = JSONUtil.toJsonStr(bean);
                                 emitter.send(beanJson);
@@ -231,10 +219,9 @@ public class ChatServiceImpl implements ChatService {
                             emitter.complete();// 数据流完成
                             history.setSessionId(sessionId.get());
                             historyMapper.insert(history);
-                            Matcher matcher = pattern.matcher(sb.toString());
-                            if (matcher.find()) {
+                            String picUrlWithExpired = processingContext.getLastImageUrl();
+                            if (picUrlWithExpired != null) {
                                 log.info("==================================有没有数据啊！！！！"+sb.toString());
-                                String picUrlWithExpired = InciseStrUtils.extractUrl(sb.toString());
                                 String picName = extractFilename(picUrlWithExpired);
                                 log.info("picUrlWithExpired:" + picUrlWithExpired);
                                 log.info("destinationFile:" + uploadDir + picName);
@@ -243,7 +230,6 @@ public class ChatServiceImpl implements ChatService {
                                 }catch (Exception e){
                                     emitter.completeWithError(e);
                                 }
-
                                 saveTaskWithPicUrl(param, user.getId(), picName,picUrlWithExpired);
                             }
                         })
@@ -351,14 +337,14 @@ public class ChatServiceImpl implements ChatService {
         String modelName;
         List<String> questions = new ArrayList<>();
         if(ObjectUtil.isEmpty(job.getMapToQuestion())){
-            selectModel(modelId);
-            ModelEnums modelEnums = map.get(modelId);
+            ModelEnums modelEnums = ModelEnums.getEnumByModelId(modelId);
+            ModelCredentials credentials = modelSelectionStrategy.resolveByModelId(modelId);
             modelName = modelEnums.getModelName().substring(0,6);
             try{
                 String prompt = "给我提一个有关于"+modelName+"相关领域的问题题目吗?" +
                         "题目格式举例:如何大力发展中医药产业发展? " +
                         "你只需要提供问题题目即可，只要一个，不要有其他的多余的话";
-                ApplicationResult call = aiManager.call(apiKey, appKey, prompt);
+                ApplicationResult call = aiFacade.call(credentials, prompt);
                 text = call.getOutput().getText();
                 return text;
             }catch (Exception e){
@@ -399,11 +385,11 @@ public class ChatServiceImpl implements ChatService {
     @Override
     @Deprecated
     public Flux<String> chat(ChatRequest param, HttpServletResponse res, HttpServletRequest req) throws ApiException, NoApiKeyException, InputRequiredException, IOException {
-        // 选择选的模型名
+        // 选择选的模型名（deprecated 保持行为，但使用新策略/外观）
         User loginUser = (User)req.getSession().getAttribute(USER_LOGIN_STATE);
         if(!loginUser.getUserRole().equals("user")){
             // 非普通用户可以才看任意选模型
-            selectModel(param.getModelId());
+            // no-op; 参数中包含 modelId，将在下方解析
         }
         if(!param.getModelId().equals(ModelEnums.MODEL3.getModelId()) && loginUser.getUserRole().equals("user")){
             // 普通用户选用非默认大模型，返回无权限访问
@@ -416,8 +402,8 @@ public class ChatServiceImpl implements ChatService {
         res.setHeader(HttpHeaders.PRAGMA, "no-cache");
         ServletOutputStream out = null;
         // 初始化调用模型
-        //ApplicationParam applicationParam = initAppParam();
-        ApplicationParam applicationParam = aiManager.initAppParam(appKey, apiKey, param.getMessage());
+        ModelCredentials credentials = modelSelectionStrategy.resolveByModelId(param.getModelId());
+        ApplicationParam applicationParam = aiManager.initAppParam(credentials.getApiKey(), credentials.getAppKey(), param.getMessage());
         out = res.getOutputStream();
         if (StrUtil.isEmpty(param.getMessage())) {
             bean.fail("无效问题，请重新输入",500);
@@ -532,7 +518,8 @@ public class ChatServiceImpl implements ChatService {
     public Flux<String> chat(
             String prompt,
             HttpServletResponse res) throws ApiException, NoApiKeyException, InputRequiredException, IOException {
-        selectModel("中医药产业大模型");
+        ModelEnums model = ModelEnums.getEnumByModelName("中医药产业大模型");
+        ModelCredentials credentials = modelSelectionStrategy.resolveByModelId(model == null ? ModelEnums.MODEL3.getModelId() : model.getModelId());
         BaiLianResult bean = new BaiLianResult();
         // 响应流
         res.setHeader(HttpHeaders.CONTENT_TYPE, MediaType.TEXT_EVENT_STREAM_VALUE);
@@ -541,8 +528,8 @@ public class ChatServiceImpl implements ChatService {
         ServletOutputStream out = null;
         // 初始化调用模型
         ApplicationParam param = ApplicationParam.builder()
-                .apiKey(apiKey)
-                .appId(appKey)
+                .apiKey(credentials.getApiKey())
+                .appId(credentials.getAppKey())
                 .prompt(prompt)
                 .build();
         out = res.getOutputStream();
@@ -605,11 +592,11 @@ public class ChatServiceImpl implements ChatService {
     @Deprecated
     public SseEmitter sseChat(String prompt, String modelId, HttpServletRequest req, SseEmitter emitter) {
         // Simulate asynchronous data retrieval from the database
-        selectModel(modelId);
+        ModelCredentials credentials = modelSelectionStrategy.resolveByModelId(modelId);
         new Thread(() -> {
             try {
                 //ApplicationParam applicationParam = initAppParam(apiKey, appKey, prompt);
-                Flowable<ApplicationResult> result = aiManager.streamCall(apiKey, appKey, prompt,"");
+                Flowable<ApplicationResult> result = aiManager.streamCall(credentials.getApiKey(), credentials.getAppKey(), prompt,"");
                 //Application application = new Application();
                 //Flowable<ApplicationResult> result = application.streamCall(applicationParam);
                 StringBuilder preText = new StringBuilder();
